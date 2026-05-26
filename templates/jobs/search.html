@@ -1,12 +1,25 @@
 {% extends 'base.html' %}
 {% block content %}
 
+{% if request.session.cv_processed %}
+<div class="cv-status-banner">
+    📄 CV Loaded: {{ request.session.cv_filename }} 
+    <a href="{% url 'upload_cv' %}">Upload New CV</a>
+</div>
+{% else %}
+<div class="cv-status-banner cv-upload-prompt">
+    💡 <a href="{% url 'upload_cv' %}">Upload your CV</a> for personalized recommendations
+</div>
+{% endif %}
+
 <!-- Search Form -->
 <form method="get" action="" class="search-form" id="search-form">
     <input type="text" name="q" value="{{ query }}" placeholder="Job title (e.g., python developer)" required>
     <input type="number" name="num" value="{{ num }}" min="1" max="30" placeholder="Max results (1-30)">
     <button type="submit">🔍 Search</button>
 </form>
+
+
 
 <!-- Loading Overlay for Initial Search -->
 <div id="search-loading" class="loading-overlay" style="display: none;">

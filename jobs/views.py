@@ -3,6 +3,11 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from .search_engine import search_jobs as run_search
 from .llm_engine import rank_and_explain
+from django.conf import settings
+from .cv_processor import get_full_cv_text
+import os
+
+
 
 DUMMY_CV = """
 Computer Science graduate with 1 year internship experience.
@@ -50,8 +55,11 @@ def search_view(request):
     return render(request, 'jobs/search.html', context)
 
 
+CHROMA_DB_PATH = os.path.join(settings.BASE_DIR, 'careerpilot_db')
+CHROMA_COLLECTION = 'cv_chunks'
+
 def recommend_view(request):
-    """LLM-powered personalized job recommendations API."""
+    """LLM-powered personalized job recommendations using real CV."""
     query = request.GET.get('q', '')
     num = request.GET.get('num', '10')
     
@@ -65,19 +73,27 @@ def recommend_view(request):
         num = 10
 
     try:
-        # Get jobs from search engine
         raw_jobs = run_search(query, num_results=num)
         
         if not raw_jobs:
             return JsonResponse([], safe=False)
         
-        # Get CV text (from session or use dummy)
-        cv_text = request.session.get('cv_text', DUMMY_CV)
+        # Try to get real CV text from ChromaDB
+        cv_text = DUMMY_CV  # Default fallback
+        if request.session.session_key:
+            try:
+                real_cv = get_full_cv_text(
+                    CHROMA_DB_PATH, 
+                    CHROMA_COLLECTION, 
+                    request.session.session_key
+                )
+                if real_cv:
+                    cv_text = real_cv
+            except Exception:
+                pass
         
-        # Rank with Gemini
         enriched = rank_and_explain(cv_text, raw_jobs)
         
-        # Add back original links and scores
         for i, job in enumerate(enriched):
             if i < len(raw_jobs):
                 job['apply_link'] = raw_jobs[i].get('apply_link', '')

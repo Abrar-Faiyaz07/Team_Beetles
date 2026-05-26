@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="cv-upload-container">
+    <h2>📄 Upload Your CV</h2>
+    <p>Upload your CV to get personalized job recommendations</p>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-error{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+    
+    <form method="post" enctype="multipart/form-data" class="cv-upload-form">
+        {% csrf_token %}
+        <div class="file-upload-area">
+            <input type="file" name="cv_file" accept=".pdf,.docx,.doc" required>
+            <p>Supported formats: PDF, DOCX</p>
+        </div>
+        <button type="submit" class="upload-btn">Process CV</button>
+    </form>
+    
+    <div class="cv-info">
+        <h3>What happens next?</h3>
+        <ol>
+            <li>Your CV is analyzed and split into sections (skills, experience, education)</li>
+            <li>It's stored securely in our vector database</li>
+            <li>Job recommendations will be personalized based on your CV</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}

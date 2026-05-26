@@ -563,3 +563,91 @@ header p {
         font-size: 2rem;
     }
 }
+
+/* CV Upload */
+.cv-upload-container {
+    max-width: 600px;
+    margin: 40px auto;
+    padding: 30px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+}
+
+.cv-upload-form {
+    margin: 20px 0;
+}
+
+.file-upload-area {
+    border: 2px dashed #ddd;
+    border-radius: 10px;
+    padding: 30px;
+    text-align: center;
+    margin-bottom: 20px;
+    transition: border-color 0.3s;
+}
+
+.file-upload-area:hover {
+    border-color: #667eea;
+}
+
+.file-upload-area input[type="file"] {
+    margin-bottom: 10px;
+}
+
+.upload-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.alert {
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.alert-success {
+    background: #d5f5e3;
+    color: #27ae60;
+    border: 1px solid #27ae60;
+}
+
+.alert-error {
+    background: #fadbd8;
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+}
+
+.cv-info {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.cv-info ol {
+    margin: 15px 0 0 20px;
+}
+
+.cv-info li {
+    margin: 8px 0;
+    color: #555;
+}
+.cv-status-banner {
+    background: #e8f5e9;
+    padding: 12px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.cv-upload-prompt {
+    background: #fff3e0;
+}
