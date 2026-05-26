@@ -1,0 +1,3 @@
+pypdf
+docx2txt
+fpdf2
