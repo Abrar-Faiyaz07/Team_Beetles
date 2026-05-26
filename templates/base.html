@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareerPilot - AI Job Search Engine</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=2">
+</head>
+<body>
+    <div id="page-loading" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Searching for jobs...</p>
+            <p class="loading-subtitle">This may take a few seconds</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <header>
+            <h1>🚀 CareerPilot</h1>
+            <p>AI-Powered Job Search & Career Intelligence</p>
+        </header>
+        {% block content %}{% endblock %}
+    </div>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
