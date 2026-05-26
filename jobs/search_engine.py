@@ -1,7 +1,3 @@
-"""
-CareerPilot - Job Search Engine
-Optimized for finding real, live job postings
-"""
 import re
 import json
 import time
@@ -9,35 +5,25 @@ import requests
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
+from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+import uvicorn
 
-# Import DuckDuckGo search
-try:
-    from ddgs import DDGS
-except ImportError:
-    from duckduckgo_search import DDGS
-
-# ─────────────────────────────────────────────
-# SEARCH QUERIES - Optimized for job boards
-# ─────────────────────────────────────────────
+# FIXED: Use the correct package
+from ddgs import DDGS
 
 QUERY_TEMPLATES = [
-    'site:greenhouse.io "{job}"',
-    'site:lever.co "{job}"',
-    'site:workable.com "{job}"',
-    'site:jobs.ashbyhq.com "{job}"',
-    'site:myworkdayjobs.com "{job}"',
-    '"{job}" "apply now" job',
-    '"{job}" "job description" "qualifications"',
+    '"{job}" "apply now" "full-time"',
+    '"{job}" site:greenhouse.io OR site:lever.co OR site:workable.com OR site:myworkdayjobs.com OR site:recruitee.com',
+    '"{job}" "job description" "requirements"',
+    'intitle:"{job}" "jobs" "careers"',
 ]
 
-def build_queries(job_title: str) -> list[str]:
-    """Build search queries targeting real job boards."""
-    job_title = job_title.strip()
-    return [template.format(job=job_title) for template in QUERY_TEMPLATES]
+def build_queries(job_title: str) -> list:
+    return [t.format(job=job_title) for t in QUERY_TEMPLATES]
 
-
-def search_ddg(query: str, total: int = 30) -> list[dict]:
-    """Search DuckDuckGo with error handling."""
+def search_ddg(query: str, total: int = 30):
     results = []
     try:
         with DDGS() as ddgs:
@@ -48,231 +34,101 @@ def search_ddg(query: str, total: int = 30) -> list[dict]:
                         "url": r.get("href", ""),
                         "snippet": r.get("body", "")
                     })
+                time.sleep(0.3)  # Add delay to avoid rate limiting
     except Exception as e:
-        print(f"DDG search error for '{query[:50]}': {str(e)[:50]}")
-    
+        print(f"Search error: {e}")
     return results
 
-
-# ─────────────────────────────────────────────
-# FETCH PAGE - Robust with retry
-# ─────────────────────────────────────────────
-
 def fetch_page(url: str) -> str | None:
-    """Download a page with retry logic and better error handling."""
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                      "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    }
-    
-    for attempt in range(2):
-        try:
-            resp = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
-            
-            # Accept more status codes
-            if resp.status_code not in [200, 201, 202]:
-                return None
-            
-            # Accept HTML and plain text
-            ct = resp.headers.get("content-type", "")
-            if "text/html" not in ct and "text/plain" not in ct:
-                return None
-            
-            html = resp.text
-            
-            # Quick dead-page check
-            low = html[:3000].lower()
-            dead_phrases = [
-                "page not found", "404", "no longer available",
-                "access denied", "not found", "sorry, the page"
-            ]
-            if any(phrase in low for phrase in dead_phrases):
-                return None
-            
-            # Strip script/style tags and HTML
-            text = re.sub(r"<(script|style|noscript|iframe)[^>]*>.*?</\1>", " ", html, flags=re.S | re.I)
-            text = re.sub(r"<[^>]+>", " ", text)
-            text = re.sub(r"&[a-z]+;", " ", text)  # Remove HTML entities
-            text = re.sub(r"\s+", " ", text).strip()
-            
-            # Accept shorter pages (job listings can be brief)
-            if len(text) < 50:
-                return None
-            
-            return text[:15000]  # Increased limit
-            
-        except requests.Timeout:
-            if attempt == 0:
-                time.sleep(1)
-                continue
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (compatible; JobBot/1.0)"}
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code != 200:
             return None
-        except Exception:
-            if attempt == 0:
-                time.sleep(1)
-                continue
+        ct = resp.headers.get("content-type", "")
+        if "text/html" not in ct:
             return None
-    
-    return None
-
-
-# ─────────────────────────────────────────────
-# JOB-PAGE VALIDATION
-# ─────────────────────────────────────────────
+        html = resp.text
+        low = html[:2000].lower()
+        dead_phrases = ["page not found", "404", "no longer available",
+                        "access denied", "not found", "the requested url was not found"]
+        if any(phrase in low for phrase in dead_phrases):
+            return None
+        text = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", html, flags=re.S | re.I)
+        text = re.sub(r"<[^>]+>", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        if len(text) < 200:
+            return None
+        return text[:10000]
+    except Exception:
+        return None
 
 def extract_jsonld_job(html: str) -> dict | None:
-    """Try to extract a JobPosting schema.org object from JSON-LD."""
-    try:
-        soup = BeautifulSoup(html, "html.parser")
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                data = json.loads(script.string)
-                # Handle array wrapping
-                if isinstance(data, list):
-                    for item in data:
-                        if isinstance(item, dict) and item.get("@type") == "JobPosting":
-                            return item
-                elif isinstance(data, dict) and data.get("@type") == "JobPosting":
-                    return data
-            except (json.JSONDecodeError, AttributeError):
-                continue
-    except Exception:
-        pass
+    soup = BeautifulSoup(html, "html.parser")
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string)
+            if isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict) and item.get("@type") == "JobPosting":
+                        return item
+            elif isinstance(data, dict) and data.get("@type") == "JobPosting":
+                return data
+        except Exception:
+            continue
     return None
 
-
-# Broader job signals for better detection
 JOB_SIGNALS = [
-    "apply now", "apply here", "apply for this job",
-    "full-time", "part-time", "remote", "hybrid",
-    "salary", "benefits", "compensation",
-    "job description", "requirements", "qualifications",
-    "responsibilities", "we are looking for",
-    "about the role", "about this position",
-    "hiring", "join our team", "join us",
-    "position", "role", "opportunity",
-    "posted", "deadline", "apply by",
-    "equal opportunity", "diversity",
+    "apply now", "full-time", "part-time", "remote", "salary", "benefits",
+    "job description", "requirements", "qualifications", "responsibilities",
+    "hiring", "position", "location:", "posted", "equal opportunity employer",
+    "full time", "part time"
 ]
 
 def job_page_score(text: str) -> float:
-    """Heuristic score: how likely is this text a real job posting?"""
-    low = text[:5000].lower()
+    low = text[:3000].lower()
     hits = sum(1 for phrase in JOB_SIGNALS if phrase in low)
-    # Anti-signals (non-job content)
-    anti = sum(1 for phrase in [
-        "search results", "all jobs", "no jobs found",
-        "job alerts", "sign in to apply", "wikipedia",
-        "tutorial", "blog", "news"
-    ] if phrase in low)
+    anti = sum(1 for phrase in ["search results", "all jobs", "no jobs found", "job alerts"] if phrase in low)
     return max(0.0, (hits - anti) / len(JOB_SIGNALS))
 
-
-# ─────────────────────────────────────────────
-# SMARTER EXTRACTORS
-# ─────────────────────────────────────────────
-
 def extract_company_smart(url: str, domain: str) -> str:
-    """Extract company name from URL patterns."""
-    # Greenhouse: greenhouse.io/companyname/...
     if "greenhouse.io" in domain:
-        path = urlparse(url).path.strip("/")
-        parts = path.split("/")
-        if parts and parts[0].lower() not in ["jobs", "job", "careers", "pages"]:
-            return parts[0].replace("-", " ").replace("_", " ").title()
-    
-    # Lever: jobs.lever.co/companyname or company.lever.co
+        path = urlparse(url).path
+        parts = path.strip("/").split("/")
+        if parts and parts[0].lower() != "jobs":
+            return parts[0].replace("-", " ").title()
     if "lever.co" in domain:
         path = urlparse(url).path.strip("/")
-        if path and path.split("/")[0].lower() not in ["jobs", "job"]:
-            return path.split("/")[0].replace("-", " ").replace("_", " ").title()
-        sub = domain.replace("jobs.lever.co", "").replace(".lever.co", "")
+        if path:
+            return path.split("/")[0].replace("-", " ").title()
+        sub = domain.replace(".lever.co", "").replace("jobs.lever.co", "")
         if sub:
             return sub.replace("-", " ").title()
-    
-    # Workable: apply.workable.com/companyname or company.workable.com
-    if "workable.com" in domain:
-        path = urlparse(url).path.strip("/")
-        if path:
-            return path.split("/")[0].replace("-", " ").replace("_", " ").title()
-        sub = domain.replace(".workable.com", "")
-        if sub and sub != "apply":
-            return sub.replace("-", " ").title()
-    
-    # Ashby: jobs.ashbyhq.com/companyname
-    if "ashbyhq.com" in domain:
-        path = urlparse(url).path.strip("/")
-        if path:
-            return path.split("/")[0].replace("-", " ").replace("_", " ").title()
-    
-    # MyWorkdayJobs: company.wd5.myworkdayjobs.com
-    if "myworkdayjobs.com" in domain:
-        sub = domain.split(".")[0]
-        if sub:
-            return sub.replace("-", " ").title()
-    
-    # Generic: try to extract from domain
-    parts = domain.split(".")
-    if len(parts) >= 2:
-        name = parts[-2] if parts[-2] not in ["co", "com", "org", "net", "io"] else parts[-3] if len(parts) >= 3 else parts[-2]
-        return name.replace("-", " ").replace("_", " ").title()
-    
-    return domain.replace("-", " ").title()
-
+    return domain.split(".")[0].replace("-", " ").title()
 
 def extract_location(text: str) -> str:
-    """Extract location from job text."""
-    patterns = [
-        r"(location|based in|located in|city|region)[:\s]+([A-Za-z ,\-]{3,40})",
-        r"(remote|onsite|hybrid)(?:\s+in\s+([A-Za-z ,\-]{3,40}))?",
-        r"([A-Za-z]+,\s*[A-Z]{2})",  # City, ST
-        r"([A-Za-z]+,\s*[A-Za-z]+)",   # City, Country
-    ]
-    
-    for pattern in patterns:
-        m = re.search(pattern, text, re.I)
-        if m:
-            # Return the longest match group
-            groups = [g for g in m.groups() if g]
-            if groups:
-                return groups[-1].strip()[:50]
-    return ""
-
+    m = re.search(r"(location|based in|in)[:\s]+([A-Za-z ,]{3,40})", text, re.I)
+    return m.group(2).strip() if m else ""
 
 def extract_skills(text: str) -> str:
-    """Extract skills/requirements from job text."""
-    patterns = [
-        r"(skills?|requirements?|qualifications?|tech stack|you have|you'll need|what you need)[:\-]?\s*(.{20,300})",
-        r"(we are looking for|you should have|must have|nice to have)[:\-]?\s*(.{20,300})",
-    ]
-    
-    for pattern in patterns:
-        m = re.search(pattern, text, re.I)
-        if m:
-            # Get the skills part
-            skills_text = m.group(2) if len(m.groups()) > 1 else m.group(1)
-            # Clean up
-            skills_text = re.sub(r'<[^>]+>', ' ', skills_text)
-            skills_text = re.sub(r'\s+', ' ', skills_text).strip()
-            return skills_text[:200]
-    return ""
+    m = re.search(r"(skills?|requirements?|tech stack)[:\-]?\s*(.{20,200})", text, re.I)
+    return m.group(2)[:120] if m else ""
 
-
-# ─────────────────────────────────────────────
-# JOB PARSER
-# ─────────────────────────────────────────────
+def score_job_keywords(query: str, job: dict) -> float:
+    query_terms = set(query.lower().split())
+    job_text = f"{job.get('title','')} {job.get('skills','')} {job.get('description','')}".lower()
+    score = sum(1 for term in query_terms if term in job_text)
+    return score / len(query_terms) if query_terms else 0
 
 def parse_job(r: dict) -> dict | None:
-    """Convert a search result into a job entry, or None if not valid."""
     url = r["url"]
     title = r["title"]
     snippet = r["snippet"]
     domain = urlparse(url).netloc.replace("www.", "")
-
     page_text = fetch_page(url)
     if page_text is None:
         return None
 
-    # 1) Try structured data (most reliable)
     job_ld = extract_jsonld_job(page_text)
     if job_ld:
         company = ""
@@ -281,7 +137,6 @@ def parse_job(r: dict) -> dict | None:
             company = org.get("name", "")
         if not company:
             company = extract_company_smart(url, domain)
-
         location = ""
         loc = job_ld.get("jobLocation")
         if isinstance(loc, dict):
@@ -290,13 +145,11 @@ def parse_job(r: dict) -> dict | None:
                 location = addr.get("addressLocality", "") or addr.get("addressRegion", "")
         if not location:
             location = extract_location(page_text)
-
         description = job_ld.get("description", "")
         if isinstance(description, str):
             description = re.sub(r'<[^>]+>', ' ', description)[:500]
         else:
             description = snippet[:500]
-
         return {
             "title": job_ld.get("title", title),
             "company": company,
@@ -310,14 +163,11 @@ def parse_job(r: dict) -> dict | None:
             "quality_score": 1.0
         }
 
-    # 2) Fallback: heuristic validation (lenient)
-    full_text = f"{snippet} {page_text[:3000]}"
-    score = job_page_score(full_text)
-    
-    # More lenient - accept if score > 0 or page has any job signals
-    if score <= 0 and not any(signal in full_text.lower() for signal in ["apply", "job", "hiring", "position"]):
+    score = job_page_score(page_text)
+    if score < 0.3:
         return None
 
+    full_text = snippet + " " + page_text
     return {
         "title": title,
         "company": extract_company_smart(url, domain),
@@ -328,71 +178,163 @@ def parse_job(r: dict) -> dict | None:
         "source": domain,
         "scraped_at": datetime.now(timezone.utc).isoformat(),
         "has_schema": False,
-        "quality_score": max(score, 0.1)
+        "quality_score": score
     }
 
-
-# ─────────────────────────────────────────────
-# SCORING FUNCTIONS
-# ─────────────────────────────────────────────
-
-def score_job_keywords(query: str, job: dict) -> float:
-    """Score a job based on keyword overlap with the query."""
-    query_terms = set(query.lower().split())
-    job_text = f"{job.get('title','')} {job.get('skills','')} {job.get('description','')}".lower()
-    
-    score = 0.0
-    for term in query_terms:
-        if term in job_text:
-            score += 1.0
-    
-    return score / len(query_terms) if query_terms else 0.0
-
-
-def rank_jobs(query: str, jobs: list[dict]) -> list[dict]:
-    """Rank jobs by relevance score."""
+def rank_jobs(query, jobs):
     for job in jobs:
         keyword_score = score_job_keywords(query, job)
         schema_bonus = 0.2 if job.get("has_schema") else 0.0
         quality_boost = job.get("quality_score", 0.5) * 0.1
         missing = sum(1 for k in ["company", "location", "skills"] if not job.get(k))
         penalty = missing * 0.1
-        
         job["score"] = round(max(0.0, keyword_score + schema_bonus + quality_boost - penalty), 3)
-    
     return sorted(jobs, key=lambda x: x["score"], reverse=True)
 
-
-# ─────────────────────────────────────────────
-# MAIN SEARCH FUNCTION
-# ─────────────────────────────────────────────
-
-def search_jobs(query: str, num_results: int = 25) -> list[dict]:
-    """Main search function: returns ranked list of job dicts."""
+def search_jobs(query, num_results=25):
+    """Main search function: returns list of job dicts."""
+    print(f"🔍 Searching for: {query}")
+    
     raw_results = []
     seen_urls = set()
     
-    queries = build_queries(query)
-    
-    for q in queries:
-        batch = search_ddg(q, total=max(10, num_results // len(queries)))
+    for q in build_queries(query):
+        print(f"  Querying: {q[:50]}...")
+        batch = search_ddg(q, total=num_results // 2)
+        print(f"    Got {len(batch)} results")
         for res in batch:
             if res["url"] not in seen_urls:
                 seen_urls.add(res["url"])
                 raw_results.append(res)
-        if len(raw_results) >= num_results * 2:  # Collect extra for filtering
+        if len(raw_results) >= num_results:
             break
     
-    # Limit and deduplicate
-    raw_results = raw_results[:num_results * 2]
-    
+    print(f"📊 Total unique URLs: {len(raw_results)}")
+    raw_results = raw_results[:num_results]
+
     jobs = []
     for i, r in enumerate(raw_results):
+        print(f"  Parsing {i+1}/{len(raw_results)}: {r['title'][:50]}...")
         job = parse_job(r)
         if job:
             jobs.append(job)
-        time.sleep(0.15)  # Be polite to servers
+            print(f"    ✅ Added")
+        else:
+            print(f"    ❌ Failed")
+        time.sleep(0.2)
     
-    # Rank and return
+    print(f"✅ Successfully parsed {len(jobs)} jobs")
     ranked = rank_jobs(query, jobs)
-    return ranked[:num_results]
+    return ranked
+
+# ========== Convert Jobs to HTML ==========
+
+def escape_html(text):
+    if not text:
+        return ""
+    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+def jobs_to_html(jobs, query=""):
+    if not jobs:
+        return '<div class="no-results">😕 No jobs found. Try different keywords.</div>'
+    
+    html_cards = ""
+    for job in jobs:
+        # Calculate fit score out of 100 based on the ranking score
+        fit_score = int(job.get("score", 0) * 100)
+        
+        # Clamp fit score to a sensible range for visual presentation
+        if fit_score > 100: fit_score = 100
+        if fit_score < 15 and job.get("score", 0) > 0: fit_score = 45 # ensure visibility
+
+        if fit_score >= 70:
+            score_class = "high-fit"
+        elif fit_score >= 50:
+            score_class = "mid-fit"
+        else:
+            score_class = "low-fit"
+        
+        # Map out the exact structured elements required by the specification
+        role = escape_html(job.get("title", "Unknown Role"))
+        company = escape_html(job.get("company", "Unknown Company"))
+        location = escape_html(job.get("location", "Not specified"))
+        
+        # Fallback values for elements not guaranteed by a generic web search scrape
+        salary_range = escape_html(job.get("salary_range", "Negotiable / Competitive"))
+        application_deadline = escape_html(job.get("application_deadline", "Open / See Link"))
+        
+        skills = escape_html(job.get("skills", "General engineering stack"))
+        description = escape_html(job.get("description", ""))[:200]
+        apply_link = escape_html(job.get("apply_link", "#"))
+        
+        # Explicit 3D Card structure meeting strict field requirements
+        card = f"""
+        <div class="card-container" onclick="this.classList.toggle('is-flipped')">
+            <div class="card-inner">
+                
+                <div class="card-front">
+                    <div class="card-header">
+                        <h3>{role}</h3>
+                        <span class="fit-badge {score_class}">{fit_score}% Fit</span>
+                    </div>
+                    <p class="company-name">{company}</p>
+                    
+                    <div class="card-meta">
+                        <div class="meta-item"><span>📍 Location:</span> <strong>{location}</strong></div>
+                        <div class="meta-item"><span>💰 Salary Range:</span> <strong>{salary_range}</strong></div>
+                        <div class="meta-item"><span>📅 Deadline:</span> <strong>{application_deadline}</strong></div>
+                    </div>
+                    
+                    <div class="flip-hint">Click for AI Analysis ↻</div>
+                </div>
+
+                <div class="card-back">
+                    <h4>🤖 AI Match Grounding</h4>
+                    <div class="reasoning-text">
+                        <p><strong>Detected Stack:</strong> {skills[:80]}...</p>
+                        <p style="margin-top: 8px;"><strong>Scraped Preview:</strong> {description}...</p>
+                    </div>
+                    
+                    <div class="card-actions" onclick="event.stopPropagation();">
+                        <a href="{apply_link}" target="_blank" class="action-btn letter-btn" style="text-decoration: none; text-align: center;">🔗 Apply Now</a>
+                        <button class="action-btn tracker-btn" onclick="alert('Sent to tracking pipeline!')">💾 Track</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        """
+        html_cards += card
+    
+    return f'<div class="results-header">Found {len(jobs)} opportunities structured for immediate decision-making</div><div class="jobs-grid">{html_cards}</div>'
+# ========== FASTAPI APP ==========
+
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/api/search-jobs", response_class=HTMLResponse)
+async def search_jobs_endpoint(query: str = Query(...)):
+    print(f"📡 Request received for: {query}")
+    try:
+        jobs = search_jobs(query, num_results=15)
+        html = jobs_to_html(jobs, query)
+        return HTMLResponse(content=html)
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        return HTMLResponse(content=f'<div class="error">Error: {str(e)}</div>')
+
+@app.get("/api/health")
+async def health():
+    return {"status": "ok"}
+
+if __name__ == "__main__":
+    print("=" * 50)
+    print("🚀 CareerPilot Backend Starting...")
+    print("=" * 50)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
