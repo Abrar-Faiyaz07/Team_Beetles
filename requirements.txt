@@ -17,6 +17,7 @@ chromadb>=0.4.0
 
 # AI/LLM
 google-generativeai>=0.3.0
+google-genai
 
 # Image/File Handling (optional but useful)
 Pillow>=10.0.0

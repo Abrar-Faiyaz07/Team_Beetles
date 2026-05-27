@@ -10,11 +10,9 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
-# Import DuckDuckGo search
-try:
-    from ddgs import DDGS
-except ImportError:
-    from duckduckgo_search import DDGS
+
+from ddgs import DDGS
+
 
 # ─────────────────────────────────────────────
 # SEARCH QUERIES - Optimized for job boards

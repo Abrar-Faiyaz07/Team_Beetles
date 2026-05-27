@@ -80,26 +80,7 @@
     {% endif %}
 {% endif %}
 
-{% if not searched %}
-    <div class="welcome-section">
-        <h2>Find Your Dream Job</h2>
-        <p class="hint">Enter a job title above and click Search to discover live job postings from across the web.</p>
-        <div class="features">
-            <div class="feature">
-                <span class="feature-icon">🌐</span>
-                <p>Real-time job listings</p>
-            </div>
-            <div class="feature">
-                <span class="feature-icon">🤖</span>
-                <p>AI-powered matching</p>
-            </div>
-            <div class="feature">
-                <span class="feature-icon">📊</span>
-                <p>Skill gap analysis</p>
-            </div>
-        </div>
-    </div>
-{% endif %}
+
 
 {% endblock %}
 
@@ -270,5 +251,13 @@ function renderAICards(jobs) {
     };
     container.appendChild(backBtn);
 }
+
+document.addEventListener('click', function(event) {
+    const anchor = event.target.closest('a.apply-btn');
+    if (anchor && anchor.href && anchor.href !== '#') {
+        event.preventDefault();
+        window.open(anchor.href, '_blank', 'noopener');
+    }
+});
 </script>
 {% endblock %}

@@ -1,33 +1,370 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="cv-upload-container">
-    <h2>📄 Upload Your CV</h2>
-    <p>Upload your CV to get personalized job recommendations</p>
+<style>
+    :root {
+        --text-main: #e2e8f0;
+        --text-muted: #94a3b8;
+        --primary-light: #60a5fa;
+        --primary: #3b82f6;
+        --card-bg: rgba(255,255,255,0.03);
+        --glass-border: rgba(255,255,255,0.08);
+        --radius-md: 12px;
+        --radius-lg: 16px;
+    }
     
+    @keyframes spin { 
+        0% { transform: rotate(0deg); } 
+        100% { transform: rotate(360deg); } 
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    @media (max-width: 768px) { 
+        .responsive-split { 
+            grid-template-columns: 1fr !important; 
+            gap: 35px !important; 
+        } 
+    }
+    
+    .back-btn { display: none !important; }
+    
+    .apply-btn {
+        display: inline-block;
+        padding: 10px 25px;
+        background: #27ae60;
+        color: white !important;
+        text-decoration: none;
+        border-radius: 25px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        cursor: pointer;
+        pointer-events: auto !important;
+        z-index: 100;
+        position: relative;
+        white-space: nowrap;
+        transition: all 0.3s;
+    }
+    
+    .apply-btn:hover {
+        background: #219a52;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3);
+    }
+    
+    .progress-item {
+        padding: 6px 10px;
+        margin: 4px 0;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        animation: fadeIn 0.3s ease-in;
+        border-left: 3px solid transparent;
+    }
+    
+    .status-start { border-left-color: #60a5fa; }
+    .status-searching { border-left-color: #f59e0b; }
+    .status-found { border-left-color: #10b981; }
+    .status-error { border-left-color: #ef4444; }
+    .status-fetching { border-left-color: #8b5cf6; }
+    .status-job { border-left-color: #06b6d4; }
+    .status-phase { border-left-color: #6366f1; }
+    .status-complete { border-left-color: #10b981; font-weight: bold; }
+    .status-info { border-left-color: #64748b; }
+    
+    .progress-time {
+        color: #64748b;
+        margin-right: 12px;
+    }
+    
+    .progress-icon {
+        color: #60a5fa;
+        margin-right: 8px;
+        font-weight: bold;
+    }
+    
+    .progress-status {
+        color: #94a3b8;
+        margin-right: 12px;
+    }
+    
+    .progress-message {
+        color: #e2e8f0;
+    }
+</style>
+
+<div class="upload-page-container fade-up" style="max-width: 950px; margin: 0 auto; padding: 20px;">
+    
+    <div class="hero-section" style="margin-bottom: 40px; text-align: center;">
+        <h1 style="margin-bottom: 12px; font-size: 2.5rem; font-weight: 700; color: var(--text-main);">
+            Your next opportunity <span style="color: var(--primary-light);">starts here</span>
+        </h1>
+        <p style="color: var(--text-muted); font-size: 1.1rem;">
+            Upload your CV and let AI find the perfect opportunities tailored to your experience
+        </p>
+    </div>
+
     {% if messages %}
         {% for message in messages %}
-            <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-error{% endif %}">
+            <div class="alert {% if message.tags == 'success' %}alert-success{% else %}alert-error{% endif %}" 
+                 style="margin-bottom: 25px; padding: 15px; border-radius: var(--radius-md);">
                 {{ message }}
             </div>
         {% endfor %}
     {% endif %}
-    
-    <form method="post" enctype="multipart/form-data" class="cv-upload-form">
+
+    {% if not request.session.cv_processed %}
+    <form method="post" enctype="multipart/form-data" class="cv-upload-form" id="upload-form">
         {% csrf_token %}
-        <div class="file-upload-area">
-            <input type="file" name="cv_file" accept=".pdf,.docx,.doc" required>
-            <p>Supported formats: PDF, DOCX</p>
-        </div>
-        <button type="submit" class="upload-btn">Process CV</button>
+        <label class="file-upload-area glass-card" 
+               style="border: 2px dashed var(--glass-border); padding: 70px 40px; display: block; cursor: pointer; border-radius: var(--radius-lg); text-align: center; background: var(--card-bg); transition: border-color 0.2s;">
+            <input type="file" name="cv_file" accept=".pdf,.docx,.doc" required style="display: none;" onchange="handleFileSelect(this)">
+            <div class="upload-icon-circle" style="width: 64px; height: 64px; background: rgba(255,255,255,0.04); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; border: 1px solid var(--glass-border);">
+                <span style="font-size: 1.8rem; color: var(--primary-light);">U</span>
+            </div>
+            <h3 id="upload-headline" style="font-size: 1.35rem; margin-bottom: 8px; color: var(--text-main);">Upload your CV</h3>
+            <p id="upload-subline" style="color: var(--text-muted); font-size: 0.95rem; margin: 0;">PDF, DOC, or DOCX up to 10MB</p>
+        </label>
+        <button type="submit" class="upload-btn" 
+                style="width: 100%; margin-top: 25px; padding: 16px; font-weight: 600; font-size: 1.05rem; background: var(--primary); color: white; border: none; border-radius: var(--radius-md); cursor: pointer;">
+            Process Profile Data
+        </button>
     </form>
-    
-    <div class="cv-info">
-        <h3>What happens next?</h3>
-        <ol>
-            <li>Your CV is analyzed and split into sections (skills, experience, education)</li>
-            <li>It's stored securely in our vector database</li>
-            <li>Job recommendations will be personalized based on your CV</li>
-        </ol>
+
+    <div id="processing-loading" class="loading-overlay" 
+         style="display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(6,17,31,0.85); z-index:999; align-items:center; justify-content:center; flex-direction:column;">
+        <div class="glass-card" style="padding: 40px; text-align: center; border-radius: var(--radius-lg); max-width: 400px; background: var(--card-bg); border: 1px solid var(--glass-border);">
+            <div class="spinner" style="border: 4px solid rgba(255,255,255,0.1); border-left-color: var(--primary-light); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+            <h3 style="color: var(--text-main); margin-bottom: 8px;">Processing CV...</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin: 0;">Extracting text, chunking sections, and embedding vectors.</p>
+        </div>
     </div>
+
+    {% else %}
+    <div class="dashboard-layout" style="text-align: left; display: grid; gap: 30px;">
+        
+        <div class="job-card glass-card" style="padding: 35px; position: relative; background: var(--card-bg); border-radius: var(--radius-lg); border: 1px solid var(--glass-border);">
+            
+            <form method="post" action="{% url 'upload_cv' %}" style="position: absolute; top: 25px; right: 25px; margin: 0;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="remove">
+                <button type="submit" 
+                        style="background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); border-radius: 50%; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; font-size: 1rem; transition: background 0.2s;" 
+                        title="Remove Profile" 
+                        onmouseover="this.style.background='rgba(239,68,68,0.1)'" 
+                        onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+                    X
+                </button>
+            </form>
+
+            <div class="profile-header-meta" style="margin-bottom: 35px; border-bottom: 1px solid var(--glass-border); padding-bottom: 25px;">
+                <h2 style="font-size: 2rem; margin: 0 0 6px 0; color: var(--text-main); font-weight: 700;">
+                    {{ cv_data.name|default:"Professional" }}
+                </h2>
+                <p style="color: var(--primary-light); font-weight: 500; margin: 5px 0 0 0; font-size: 1rem;">
+                    {{ cv_data.title|default:"Professional" }}
+                </p>
+                <p style="color: var(--text-muted); margin: 8px 0 0 0; font-size: 0.85rem;">
+                    CV File: {{ request.session.cv_filename }}
+                </p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 45px;" class="responsive-split">
+                
+                <div>
+                    <h4 style="font-size: 1.15rem; color: var(--text-main); margin: 0 0 20px 0; display: flex; align-items: center; gap: 10px; font-weight: 600;">
+                         Experience
+                    </h4>
+                    <div style="border-left: 2px solid var(--glass-border); padding-left: 20px; margin-left: 4px; color: var(--text-muted); line-height: 1.7; font-size: 0.95rem; white-space: pre-line;">
+                        {{ cv_data.experience }}
+                    </div>
+                </div>
+
+                <div>
+                    <h4 style="font-size: 1.15rem; color: var(--text-main); margin: 0 0 20px 0; display: flex; align-items: center; gap: 10px; font-weight: 600;">
+                        Skills
+                    </h4>
+                    <div class="skill-tags" style="margin-top: 0; display: flex; flex-wrap: wrap; gap: 10px;">
+                        {% if cv_data.skills %}
+                            {% for skill in cv_data.skills %}
+                                <span class="skill-chip" style="margin: 0; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; color: var(--text-main);">{{ skill }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="skill-chip" style="color: var(--text-muted); font-style: italic; background: none; border: none; padding: 0;">No skills extracted. Using embedding context.</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="search-trigger-panel" style="text-align: center; margin: 15px 0;">
+            <button type="button" id="trigger-ai-discovery-btn" class="ai-btn" 
+                    style="padding: 18px 45px; font-size: 1.1rem; display: inline-flex; align-items: center; gap: 12px; font-weight: 600; cursor: pointer; border-radius: var(--radius-md); background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none;">
+                Match CV with Jobs
+            </button>
+        </div>
+
+        <div id="loading-ai" class="loading-ai" 
+             style="display: none; border-radius: var(--radius-lg); padding: 40px; text-align: center; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border);">
+            <div class="spinner" style="border: 3px solid rgba(255,255,255,0.1); border-left-color: var(--primary-light); border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto 15px;"></div>
+            <p style="color: var(--text-main); margin: 0 0 5px 0;">Analyzing your CV and searching for matches...</p>
+            <p class="loading-subtitle" style="color: var(--text-muted); font-size: 0.85rem; margin: 0;">Using AI to find the best opportunities</p>
+        </div>
+
+        <div id="search-progress-container" style="display: none; margin: 20px 0; background: rgba(0,0,0,0.2); border-radius: 8px; padding: 15px; border: 1px solid var(--glass-border);">
+            <h4 style="margin: 0 0 10px 0; font-size: 0.9rem; color: #94a3b8;">Search Progress</h4>
+            <div id="search-progress" style="font-family: monospace; font-size: 0.8rem; max-height: 200px; overflow-y: auto; color: #60a5fa;">
+            </div>
+        </div>
+
+        <div id="ai-results" class="ai-results-container" style="margin-top: 10px;"></div>
+    </div>
+    {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function handleFileSelect(input) {
+    if (input.files && input.files[0]) {
+        document.getElementById('upload-headline').innerText = "File Selected";
+        document.getElementById('upload-subline').innerText = input.files[0].name;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadForm = document.getElementById('upload-form');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', function() {
+            document.getElementById('processing-loading').style.display = 'flex';
+        });
+    }
+
+    const matchBtn = document.getElementById('trigger-ai-discovery-btn');
+    if (matchBtn) {
+        matchBtn.addEventListener('click', async function() {
+            const loadingDiv = document.getElementById('loading-ai');
+            const resultsDiv = document.getElementById('ai-results');
+            const progressContainer = document.getElementById('search-progress-container');
+            const progressDiv = document.getElementById('search-progress');
+            
+            if (progressContainer) {
+                progressContainer.style.display = 'block';
+            }
+            if (progressDiv) {
+                progressDiv.innerHTML = '';
+            }
+            
+            loadingDiv.style.display = 'block';
+            resultsDiv.innerHTML = '';
+            matchBtn.disabled = true;
+            matchBtn.textContent = '[Processing CV with AI...]';
+
+            try {
+                const response = await fetch('/recommend/?num=12');
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP Error: ${response.status}`);
+                }
+                
+                const jobs = await response.json();
+                
+                if (jobs.error) {
+                    throw new Error(jobs.error);
+                }
+                
+                renderAICards(jobs);
+            } catch (err) {
+                resultsDiv.innerHTML = `
+                    <div style="border: 1px solid rgba(239,68,68,0.4); text-align: center; padding: 20px; border-radius: 8px; background: rgba(239,68,68,0.05);">
+                        <p style="color: #ef4444; margin: 0 0 5px 0;">[ERROR]</p>
+                        <p style="color: #94a3b8; font-size: 0.9rem; margin:0;">${err.message}</p>
+                    </div>`;
+            } finally {
+                loadingDiv.style.display = 'none';
+                matchBtn.disabled = false;
+                matchBtn.textContent = '[Match CV with Jobs]';
+            }
+        });
+    }
+});
+
+function renderAICards(jobs) {
+    const container = document.getElementById('ai-results');
+    if (!jobs || jobs.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #94a3b8; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;">
+                <p>No matching jobs found. Try uploading a different CV or adjusting your skills section.</p>
+            </div>`;
+        return;
+    }
+
+    let html = '<h3 style="font-size: 1.4rem; margin-bottom: 20px; color: #e2e8f0; font-weight: 600;">Recommended opportunities</h3>';
+    html += '<div style="display: grid; gap: 20px;">';
+
+    jobs.forEach((job) => {
+        const fitPercent = Math.round((job.fit_score || 0.5) * 100);
+        const applyLink = job.apply_link || '#';
+        const safeTitle = escapeHtml(job.title || 'Position');
+        const safeCompany = escapeHtml(job.company || 'Organization');
+        const safeLocation = escapeHtml(job.location || 'Various locations');
+        const matchedSkills = job.matched_skills || [];
+        const reason = escapeHtml(job.reason || 'Match found based on CV analysis');
+        
+        let matchColor = '#ef4444';
+        if (fitPercent >= 70) matchColor = '#10b981';
+        else if (fitPercent >= 50) matchColor = '#f59e0b';
+        else if (fitPercent >= 30) matchColor = '#60a5fa';
+        
+        html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 25px; gap: 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;">
+            <div style="flex: 1; min-width: 0;">
+                <h3 style="margin: 0; font-size: 1.25rem;">
+                    <a href="${applyLink}" target="_blank" rel="noopener noreferrer" 
+                       style="color: #e2e8f0; text-decoration: none;"
+                       onmouseover="this.style.color='#60a5fa'" 
+                       onmouseout="this.style.color='#e2e8f0'">
+                        ${safeTitle}
+                    </a>
+                </h3>
+                <p style="margin: 6px 0; font-size: 0.95rem; color: #60a5fa; font-weight: 500;">${safeCompany}</p>
+                <p style="margin: 0; color: #94a3b8; font-size: 0.85rem; display: flex; gap: 15px; flex-wrap: wrap;">
+                    <span>Location: ${safeLocation}</span>
+                    ${matchedSkills.length > 0 ? `<span>Matches: ${escapeHtml(matchedSkills.slice(0, 3).join(', '))}</span>` : ''}
+                </p>
+                <p style="margin: 8px 0 0 0; color: #64748b; font-size: 0.8rem;">${reason}</p>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 25px; text-align: right; flex-shrink: 0;">
+                <div>
+                    <span style="font-size: 1.5rem; font-weight: 700; color: ${matchColor}; display: block;">${fitPercent}%</span>
+                    <span style="font-size: 0.75rem; color: #94a3b8; display: block; text-transform: uppercase;">Match</span>
+                </div>
+                <a href="${applyLink}" target="_blank" rel="noopener noreferrer" 
+                   style="display: inline-block; padding: 10px 25px; background: #27ae60; color: white !important; text-decoration: none; border-radius: 25px; font-weight: 600; font-size: 0.9rem; cursor: pointer; white-space: nowrap;">
+                    Apply Now
+                </a>
+            </div>
+        </div>`;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
 {% endblock %}
