@@ -1,0 +1,22 @@
+# Environment variables
+.env
+
+# Python virtual environment
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Django
+db.sqlite3
+
+media/
+
+# CareerPilot data
+careerpilot_db/
+
+# IDE
+.vscode/
+.idea/
