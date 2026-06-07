@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card slide-up" style="max-width: 400px; margin: auto; padding: 30px;">
+    <h2 style="text-align: center; margin-bottom: 20px;">Create an Account</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;">Register</button>
+    </form>
+    <div style="text-align: center; margin-top: 20px;">
+        <p style="font-size: 0.9em;">Already have an account? <a href="{% url 'login' %}" style="color: var(--primary); font-weight: 600;">Log In</a></p>
+    </div>
+</div>
+{% endblock %}

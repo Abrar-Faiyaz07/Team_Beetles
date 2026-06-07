@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <h2 style="color: var(--primary); margin-top: 0;">Personal AI Assistant</h2>
+    <p>Chat with your co-pilot. It knows your CV and can draft cover letters, build roadmaps, or assess your fit.</p>
+
+    <div style="border: 1px solid #e5e7eb; border-radius: 8px; height: 500px; overflow-y: scroll; padding: 20px; background: #f9fafb; margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px;">
+        {% for msg in chat_history %}
+            {% if msg.role == 'user' %}
+                <div class="slide-up" style="align-self: flex-end; background: var(--primary); color: white; padding: 12px 18px; border-radius: 18px 18px 0 18px; max-width: 75%; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    {{ msg.text }}
+                </div>
+            {% else %}
+                <div class="fade-in" style="align-self: flex-start; background: white; color: var(--text); padding: 12px 18px; border-radius: 18px 18px 18px 0; max-width: 85%; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #e5e7eb; line-height: 1.6;">
+                    {{ msg.text|safe }}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <form method="POST" style="display: flex; gap: 10px; margin-bottom: 0;">
+        {% csrf_token %}
+        <input type="text" name="message" placeholder="Ask me anything..." required style="margin-bottom: 0; flex-grow: 1;">
+        <button type="submit" class="btn btn-primary" style="padding: 0 25px;">Send</button>
+    </form>
+
+    <form method="POST" action="{% url 'clear_chat' %}" style="margin-top: 15px; text-align: right;">
+        {% csrf_token %}
+        <button type="submit" style="background: transparent; color: #EF4444; border: none; cursor: pointer; text-decoration: underline; font-weight: 500;">Clear Conversation</button>
+    </form>
+</div>
+{% endblock %}

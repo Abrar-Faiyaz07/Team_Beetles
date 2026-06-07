@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="fade-in" style="margin-bottom: 30px;">
+    <h2 style="color: var(--primary); margin-top: 0; margin-bottom: 5px;">My Profile Dashboard</h2>
+    <p style="color: var(--text-light); margin: 0;">Welcome back, <strong>{{ user.username }}</strong>. Here is an overview of your career progress.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 2fr; gap: 25px;">
+    
+    <!-- Left Column: Core Stats -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- CV / RAG Status -->
+        <div class="card slide-up" style="margin-bottom: 0;">
+            <h3 style="margin-top: 0; color: var(--text); border-bottom: 2px solid #f3f4f6; padding-bottom: 10px;">📄 Resume Intelligence</h3>
+            {% if has_cv %}
+                <div style="background: #d1fae5; color: #047857; padding: 15px; border-radius: 8px; font-weight: 500; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.5em;">✅</span>
+                    <div>
+                        CV Active in RAG<br>
+                        <small style="font-weight: normal; color: #065f46;">File: {{ cv_name }}</small>
+                    </div>
+                </div>
+                <a href="/" class="btn" style="color: var(--primary); margin-top: 10px; width: 100%; box-sizing: border-box; text-align: center; border: 1px solid var(--primary);">Update CV</a>
+            {% else %}
+                <div style="background: #fee2e2; color: #b91c1c; padding: 15px; border-radius: 8px; font-weight: 500; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.5em;">⚠️</span> No CV Uploaded
+                </div>
+                <p style="font-size: 0.9em; color: var(--text-light); margin-top: 10px;">Your AI Assistant needs your CV to score jobs and write cover letters.</p>
+                <a href="/" class="btn btn-primary" style="width: 100%; box-sizing: border-box; text-align: center; margin-top: 5px;">Setup RAG Core Now</a>
+            {% endif %}
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="card slide-up" style="margin-bottom: 0; animation-delay: 0.1s;">
+            <h3 style="margin-top: 0; color: var(--text); border-bottom: 2px solid #f3f4f6; padding-bottom: 10px;">📊 Activity Overview</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <span style="color: var(--text-light); font-weight: 500;">Active Applications</span>
+                <span style="background: var(--primary); color: white; padding: 5px 15px; border-radius: 20px; font-size: 1.2rem; font-weight: bold;">{{ active_apps }} / {{ total_apps }}</span>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span style="color: var(--text-light); font-weight: 500;">Learning Roadmap</span>
+                    <span style="color: var(--secondary); font-weight: bold;">{{ goal_progress }}%</span>
+                </div>
+                <!-- Progress Bar -->
+                <div style="width: 100%; background-color: #e5e7eb; border-radius: 10px; height: 12px; overflow: hidden;">
+                    <div style="background-color: var(--secondary); height: 100%; width: {{ goal_progress }}%; transition: width 1s ease-in-out;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Recent Activity -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        
+        <!-- Recent Apps -->
+        <div class="card slide-up" style="margin-bottom: 0; animation-delay: 0.2s;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: var(--text);">💼 Recent Applications</h3>
+                <a href="/tracker/" style="font-size: 0.9em; color: var(--primary); text-decoration: none; font-weight: 600;">View All &rarr;</a>
+            </div>
+            
+            <ul style="list-style-type: none; padding: 0; margin: 0;">
+                {% for app in recent_applications %}
+                <li style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 15px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: var(--text);">{{ app.company }}</strong>
+                        <div style="color: var(--text-light); font-size: 0.9em;">{{ app.role }}</div>
+                    </div>
+                    <span style="font-size: 0.8em; padding: 4px 10px; border-radius: 12px; font-weight: bold; background: {% if app.status == 'offer' %}#d1fae5; color: #047857{% elif app.status == 'interviewing' %}#dbeafe; color: #1d4ed8{% elif app.status == 'rejected' %}#fee2e2; color: #b91c1c{% else %}#f3f4f6; color: #4b5563{% endif %};">
+                        {{ app.status|title }}
+                    </span>
+                </li>
+                {% empty %}
+                <li style="text-align: center; color: var(--text-light); padding: 10px;">No applications tracked yet.</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Upcoming Goals -->
+        <div class="card slide-up" style="margin-bottom: 0; animation-delay: 0.3s;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0; color: var(--text);">🎯 Upcoming Goals</h3>
+                <a href="/tracker/" style="font-size: 0.9em; color: var(--primary); text-decoration: none; font-weight: 600;">Manage &rarr;</a>
+            </div>
+
+            <ul style="list-style-type: none; padding: 0; margin: 0;">
+                {% for goal in upcoming_goals %}
+                <li style="border-bottom: 1px solid #f3f4f6; padding: 10px 0; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 500; color: var(--text); {% if goal.is_completed %}text-decoration: line-through; color: var(--text-light);{% endif %}">{{ goal.title }}</span>
+                    <span style="font-size: 0.85em; color: {% if goal.is_completed %}var(--secondary){% else %}#f59e0b{% endif %}; font-weight: bold;">
+                        {% if goal.is_completed %}✓ Done{% else %}Due: {{ goal.deadline|date:"M d" }}{% endif %}
+                    </span>
+                </li>
+                {% empty %}
+                <li style="text-align: center; color: var(--text-light); padding: 10px;">No goals set yet.</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

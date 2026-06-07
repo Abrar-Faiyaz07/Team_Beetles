@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareerPilot AI</title>
+    <style>
+        :root {
+            --primary: #4F46E5;
+            --primary-hover: #4338CA;
+            --secondary: #10B981;
+            --bg: #F3F4F6;
+            --surface: #ffffff;
+            --text: #1F2937;
+            --text-light: #6B7280;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            transition: all 0.3s ease;
+        }
+
+        /* Animations */
+        .fade-in { animation: fadeIn 0.8s ease-in-out forwards; }
+        .slide-up { animation: slideUp 0.6s ease-out forwards; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Navbar */
+        nav {
+            background: var(--surface);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 5%;
+        }
+
+        .nav-brand {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-light);
+            margin-left: 20px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        /* Container & Cards */
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .card {
+            background: var(--surface);
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid #e5e7eb;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 20px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Inputs & Buttons */
+        input[type="text"], input[type="password"], input[type="file"], input[type="date"], select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            text-align: center;
+            transition: background-color 0.2s, transform 0.1s;
+            text-decoration: none;
+        }
+        
+        .btn:active { transform: scale(0.98); }
+
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:hover { background-color: var(--primary-hover); }
+
+        .btn-success { background-color: var(--secondary); color: white; }
+        .btn-success:hover { background-color: #059669; }
+
+        .auth-buttons {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logout-form {
+            display: inline;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <nav class="slide-up">
+        <a href="/" class="nav-brand">🚀 CareerPilot</a>
+        <div class="nav-links">
+            {% if user.is_authenticated %}
+                <a href="{% url 'profile_dashboard' %}">Dashboard</a>
+                <a href="/">RAG Setup</a>
+                <a href="/jobs/">Jobs</a>
+                <a href="/assistant/">Assistant</a>
+                <a href="/tracker/">Tracker</a>
+            {% endif %}
+        </div>
+        <div class="auth-buttons">
+            {% if user.is_authenticated %}
+                <span style="color: var(--text-light); font-weight: 500;">Hi, {{ user.username }}</span>
+                <form action="{% url 'logout' %}" method="post" class="logout-form">
+                    {% csrf_token %}
+                    <button type="submit" class="btn" style="background: transparent; color: #EF4444; border: 1px solid #EF4444;">Log Out</button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}" class="btn" style="color: var(--primary); font-weight: 600;">Log In</a>
+                <a href="{% url 'register' %}" class="btn btn-primary">Sign Up</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="container fade-in">
+        {% block content %}
+        {% endblock %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card">
+    <h2 style="color: var(--primary); margin-top: 0;">AI Job Hunter</h2>
+    <p>Search for jobs using natural language. Our AI will score your fit based on your uploaded CV.</p>
+
+    <form method="POST" style="display: flex; gap: 10px; margin-bottom: 30px; margin-top: 20px;">
+        {% csrf_token %}
+        <input type="text" name="query" placeholder="e.g. Find me ML internships in Dhaka" value="{{ query }}" required style="margin-bottom: 0;">
+        <button type="submit" class="btn btn-primary">Hunt Jobs</button>
+    </form>
+</div>
+
+{% if results %}
+    <h3 style="margin-top: 30px; color: var(--text);">Top Matches</h3>
+    <div style="display: grid; gap: 20px;">
+        {% for job in results %}
+        <div class="card slide-up" style="margin-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                <div>
+                    <h4 style="margin: 0; color: var(--primary); font-size: 1.2rem;">{{ job.title }}</h4>
+                    <p style="margin: 5px 0 0 0; color: var(--text-light); font-weight: 500;">{{ job.company }} | {{ job.location }}</p>
+                </div>
+                <span style="background: {% if job.fit_score > 70 %}#d1fae5; color: #047857{% elif job.fit_score > 40 %}#fef3c7; color: #b45309{% else %}#fee2e2; color: #b91c1c{% endif %}; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 1.1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    Fit: {{ job.fit_score }}%
+                </span>
+            </div>
+            
+            <p style="font-size: 0.95em; color: var(--text); line-height: 1.5; margin: 15px 0;">{{ job.snippet }}</p>
+            
+            <div style="background: #f8fafc; padding: 15px; border-radius: 8px; border-left: 4px solid var(--primary); font-size: 0.95em;">
+                <strong style="color: var(--primary);">🤖 AI Reasoning:</strong> {{ job.fit_reasoning }}
+            </div>
+            
+            <div style="margin-top: 15px; text-align: right;">
+                <a href="{{ job.link }}" target="_blank" class="btn btn-primary" style="padding: 8px 15px; font-size: 0.9em;">View Posting &rarr;</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock %}

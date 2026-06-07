@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card" style="text-align: center; padding: 40px;">
+    <h2 style="color: var(--secondary); font-size: 2rem; margin-top: 0;">🎉 Success!</h2>
+    <p style="font-size: 1.1rem;">Your CV has been successfully parsed, chunked, and embedded into the vector database.</p>
+    
+    <div style="margin-top: 30px; display: flex; justify-content: center; gap: 15px;">
+        <a href="/jobs/" class="btn btn-primary">Go to Job Hunter</a>
+        <a href="/assistant/" class="btn btn-primary" style="background-color: var(--secondary);">Talk to AI Assistant</a>
+    </div>
+</div>
+{% endblock %}

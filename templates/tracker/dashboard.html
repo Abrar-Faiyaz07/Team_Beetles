@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="margin-bottom: 30px;">
+    <h2 style="color: var(--primary); margin-top: 0; margin-bottom: 5px;">Progress & Productivity Tracker</h2>
+    <p style="color: var(--text-light); margin: 0;">Keep track of your job applications and learning goals.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+    <!-- Application Kanban -->
+    <div class="card slide-up" style="margin-bottom: 0;">
+        <h3 style="color: var(--text); margin-top: 0; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px;">💼 Job Applications</h3>
+        
+        <form method="POST" style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; background: #f9fafb; padding: 15px; border-radius: 8px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_app">
+            <input type="text" name="company" placeholder="Company Name" required style="margin-bottom: 0;">
+            <input type="text" name="role" placeholder="Role (e.g. Data Scientist)" required style="margin-bottom: 0;">
+            <div style="display: flex; gap: 10px;">
+                <select name="status" style="margin-bottom: 0; flex-grow: 1;">
+                    <option value="applied">Applied</option>
+                    <option value="interviewing">Interviewing</option>
+                    <option value="offer">Offer</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+                <button type="submit" class="btn btn-primary" style="white-space: nowrap;">Add Job</button>
+            </div>
+        </form>
+
+        <ul style="list-style-type: none; padding: 0; margin: 0;">
+            {% for app in apps %}
+            <li style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-bottom: 10px; background: white; transition: box-shadow 0.2s;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <strong style="font-size: 1.1em; color: var(--primary);">{{ app.company }}</strong>
+                    <span style="font-size: 0.8em; padding: 4px 10px; border-radius: 12px; font-weight: bold; background: {% if app.status == 'offer' %}#d1fae5; color: #047857{% elif app.status == 'interviewing' %}#dbeafe; color: #1d4ed8{% elif app.status == 'rejected' %}#fee2e2; color: #b91c1c{% else %}#f3f4f6; color: #4b5563{% endif %};">
+                        {{ app.status|title }}
+                    </span>
+                </div>
+                <div style="color: var(--text-light); font-size: 0.9em;">{{ app.role }}</div>
+            </li>
+            {% empty %}
+            <li style="text-align: center; color: var(--text-light); padding: 20px;">No applications tracked yet.</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <!-- Goals Calendar/Todo -->
+    <div class="card slide-up" style="margin-bottom: 0; animation-delay: 0.1s;">
+        <h3 style="color: var(--text); margin-top: 0; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px;">🎯 Learning Goals</h3>
+        
+        <form method="POST" style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; background: #f9fafb; padding: 15px; border-radius: 8px;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_goal">
+            <input type="text" name="title" placeholder="e.g. Finish Data Structures course" required style="margin-bottom: 0;">
+            <div style="display: flex; gap: 10px;">
+                <input type="date" name="deadline" required style="margin-bottom: 0; flex-grow: 1;">
+                <button type="submit" class="btn btn-success" style="white-space: nowrap;">Add Goal</button>
+            </div>
+        </form>
+
+        <ul style="list-style-type: none; padding: 0; margin: 0;">
+            {% for goal in goals %}
+            <li style="border: 1px solid #e5e7eb; border-left: 4px solid {% if goal.is_completed %}var(--secondary){% else %}#f59e0b{% endif %}; border-radius: 8px; padding: 15px; margin-bottom: 10px; background: white;">
+                <div style="font-weight: 500; margin-bottom: 5px;">{{ goal.title }}</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85em;">
+                    <span style="color: var(--text-light);">Due: <strong>{{ goal.deadline }}</strong></span>
+                    <span style="color: {% if goal.is_completed %}var(--secondary){% else %}#f59e0b{% endif %}; font-weight: bold;">
+                        {% if goal.is_completed %}✓ Completed{% else %}⏳ Pending{% endif %}
+                    </span>
+                </div>
+            </li>
+            {% empty %}
+            <li style="text-align: center; color: var(--text-light); padding: 20px;">No goals set yet.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
